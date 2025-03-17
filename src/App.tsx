@@ -1,6 +1,42 @@
+interface AppSettings {
+  voice: string;
+  voiceSpeed: number;
+  particles: 'none' | 'few' | 'normal' | 'many';
+  textSize: 'small' | 'medium' | 'large' | 'xlarge';
+  animationSpeed: 'slow' | 'normal' | 'fast';
+}
+
+interface Particle {
+  x: number;
+  y: number;
+  size: number;
+  speedX: number;
+  speedY: number;
+  type: string;
+  rotation: number;
+  rotationSpeed: number;
+  opacity: number;
+}
+
+interface BookCardProps {
+  book: BookProps;
+  onOpenBook: (book: BookProps) => void;
+}
+
+interface ImageLoadEvent extends React.SyntheticEvent<HTMLImageElement> {
+  target: HTMLImageElement;
+}
+
+interface AppSettingsPanelProps {
+  isOpen: boolean;
+  onClose: () => void;
+  settings: AppSettings;
+  onSettingsChange: (settings: AppSettings) => void;
+}
+
 // App Settings Panel Component
-const AppSettingsPanel = ({ isOpen, onClose, settings, onSettingsChange }) => {
-  const [availableVoices, setAvailableVoices] = useState([]);
+const AppSettingsPanel = ({ isOpen, onClose, settings, onSettingsChange }: AppSettingsPanelProps) => {
+  const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
   
   // Get available voices for speech synthesis 
   useEffect(() => {
@@ -241,21 +277,33 @@ const AppSettingsPanel = ({ isOpen, onClose, settings, onSettingsChange }) => {
 };import React, { useState, useEffect, useRef } from 'react';
 import { Volume2, X, ChevronLeft, ChevronRight, Heart } from 'lucide-react';
 
+interface BookProps {
+  id: string;
+  title: string;
+  author: string;
+  description: string;
+  content: string[];
+  coverImage: string;
+  genres: string[];
+  gradient: string;
+  bubbleColor: string;
+}
+
 // Book type definition
-const Book = ({ id, title, author, description, content, coverImage, genres, gradient, bubbleColor }) => ({
+const Book = ({ id, title, author, description, content, coverImage, genres, gradient, bubbleColor }: BookProps) => ({
   id, title, author, description, content, coverImage, genres, gradient, bubbleColor
 });
 
 // Moving Particles System
-const MovingParticles = ({ density = 'normal', speed = 'normal' }) => {
-  const canvasRef = useRef(null);
+const MovingParticles = ({ density = 'normal', speed = 'normal' }: { density: 'none' | 'few' | 'normal' | 'many', speed: 'slow' | 'normal' | 'fast' }) => {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const animationRef = useRef(0);
   
   useEffect(() => {
-    const canvas = canvasRef.current;
+    const canvas = canvasRef.current as HTMLCanvasElement;
     if (!canvas) return;
     
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d') as CanvasRenderingContext2D;
     if (!ctx) return;
     
     // Setup canvas
@@ -288,7 +336,7 @@ const MovingParticles = ({ density = 'normal', speed = 'normal' }) => {
     
     // Create particles - larger and more prominent
     const particleTypes = ['🧶', '🪡', '🧵', '✂️'];
-    const particles = [];
+    const particles: Particle[] = [];
     
     for (let i = 0; i < particleCount; i++) {
       particles.push({
@@ -403,11 +451,11 @@ const ScrollingBanner = () => {
 };
 
 // BookCard Component
-const BookCard = ({ book, onOpenBook }) => {
+const BookCard: React.FC<BookCardProps> = ({ book, onOpenBook }) => {
   const [isNarrating, setIsNarrating] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   
-  const handleNarrate = (e) => {
+  const handleNarrate = (e: React.MouseEvent) => {
     e.stopPropagation();
     
     if (isNarrating) {
@@ -474,6 +522,11 @@ const BookCard = ({ book, onOpenBook }) => {
           style={{
             transform: isHovered ? 'scale(1.05)' : 'scale(1)',
           }}
+          onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
+            console.error(`Failed to load image: ${book.coverImage}`);
+            const imgElement = e.target as HTMLImageElement;
+            imgElement.src = "/api/placeholder/400/500"; // Fallback to placeholder
+          }}
         />
       </div>
       
@@ -511,11 +564,11 @@ const BookCard = ({ book, onOpenBook }) => {
 };
 
 // Enhanced Book Reader Component for elderly users
-const BookReader = ({ book, onClose, settings }) => {
+const BookReader = ({ book, onClose, settings }: { book: BookProps, onClose: () => void, settings: AppSettings }) => {
   const [currentPage, setCurrentPage] = useState(0);
   const [isReading, setIsReading] = useState(false);
   const [selectedVoice, setSelectedVoice] = useState(settings?.voice || 'default');
-  const [availableVoices, setAvailableVoices] = useState([]);
+  const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [voiceSpeed, setVoiceSpeed] = useState(settings?.voiceSpeed || 1);
   const [showNarrationSettings, setShowNarrationSettings] = useState(false);
   const [textSize, setTextSize] = useState(settings?.textSize || 'large'); // default to large for elderly users
@@ -529,7 +582,7 @@ const BookReader = ({ book, onClose, settings }) => {
       const loadVoices = () => {
         const voices = window.speechSynthesis.getVoices();
         if (voices.length > 0) {
-          setAvailableVoices(voices);
+          setAvailableVoices(voices as SpeechSynthesisVoice[]);
           setSelectedVoice(voices[0]?.name || 'default');
         }
       };
@@ -587,7 +640,7 @@ const BookReader = ({ book, onClose, settings }) => {
   };
   
   // Read current page with callback
-  const readPage = (onEndCallback) => {
+  const readPage = (onEndCallback?: () => void) => {
     if ('speechSynthesis' in window) {
       // Cancel any ongoing speech
       window.speechSynthesis.cancel();
@@ -841,7 +894,7 @@ const BookReader = ({ book, onClose, settings }) => {
 };
 
 // Support Writer Modal Component
-const SupportWriterModal = ({ isOpen, onClose }) => {
+const SupportWriterModal = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) => {
   const [message, setMessage] = useState('');
   
   // Support messages
@@ -908,11 +961,12 @@ const SupportWriterModal = ({ isOpen, onClose }) => {
 };
 
 // Main App Component
+// Main App Component
 const App = () => {
   const [selectedBook, setSelectedBook] = useState(null);
   const [isSupportModalOpen, setIsSupportModalOpen] = useState(false);
   const [isSettingsPanelOpen, setIsSettingsPanelOpen] = useState(false);
-  const [appSettings, setAppSettings] = useState({
+  const [appSettings, setAppSettings] = useState<AppSettings>({
     voice: 'default',
     voiceSpeed: 1.0,
     particles: 'normal',
@@ -920,14 +974,14 @@ const App = () => {
     animationSpeed: 'normal'
   });
   
-  // Book data
+  // Book data - using simple relative paths
   const books = [
     {
       id: 'needle-and-yarn',
       title: "The Love Story of a Needle and a Yarn",
       author: "Leola Sister Lee",
       description: "A heartwarming tale of love between crafting tools. Follow Needle and Yarn as they navigate challenges, form deep bonds, and create beautiful projects together.",
-      coverImage: "/api/placeholder/400/500",
+      coverImage: "/Books/NeedleandYarn.png",
       content: [
         "CHAPTER 1\n\nNeedle woke up feeling restless. The sunlight streamed in through the window of the sewing basket, and Yarn was coiled beside her, snug and warm.\n\nFor as long as Needle could remember, they had been together in this basket. Silver and smooth, Needle prided herself on precision and sharpness. Meanwhile, Yarn was soft and colorful, always ready with a kind word or gentle suggestion.\n\n\"Good morning,\" Yarn said, uncoiling slightly. \"You look like you've been thinking again.\"",
         "Needle sighed. \"I've been wondering if we'll ever get to create something truly beautiful. It's been weeks since we were last used.\"\n\nYarn moved closer, its fibers brushing against Needle's metal surface. \"We will. The right project will come along—we just need to be patient.\"\n\nNeedle wasn't convinced. Patience had never been her strong suit.",
@@ -946,7 +1000,7 @@ const App = () => {
       title: "Crochet Mastery: A Complete Guide",
       author: "Leola Sister Lee",
       description: "A comprehensive guide to mastering the art of crochet. From basic stitches to complex techniques, this guide has everything you need to become a crochet master.",
-      coverImage: "/api/placeholder/400/500",
+      coverImage: "/Books/CrochetMaster.png",
       content: [
         "INTRODUCTION\n\nCrochet is an age-old craft that has allowed countless generations to create beautiful pieces from simple yarn. In this guide, we will go from the basics to advanced techniques.\n\nAll you need to start is a hook and some yarn—but what you can create is limited only by your imagination.",
         "CHAPTER 1: Basic Stitches\n\nEvery crochet journey begins with the humble chain stitch. To create a chain stitch:\n\n1. Make a slip knot on your hook\n2. Yarn over (wrap the yarn around your hook)\n3. Pull the yarn through the loop on your hook\n\nCongratulations! You've made your first chain stitch. Repeat to create a foundation chain of the desired length.",
@@ -963,12 +1017,35 @@ const App = () => {
     },
   ];
   
+  // Add effect to check image loading
+  useEffect(() => {
+    const checkImageURL = (url: string) => {
+      // Create a new image element
+      const img = new Image();
+      
+      img.onload = () => {
+        console.log(`Image loaded successfully: ${url}`);
+      };
+      
+      img.onerror = () => {
+        console.error(`Failed to load image: ${url}`);
+      };
+      
+      // Set the source of the image to the URL we want to check
+      img.src = url;
+    };
+    
+    // Check both book cover images
+    checkImageURL("/Books/NeedleandYarn.png");
+    checkImageURL("/Books/CrochetMaster.png");
+  }, []);
+  
   return (
     <div className="h-screen bg-black text-white flex flex-col overflow-hidden">
       {/* Moving particles background with settings */}
       <MovingParticles 
-        density={appSettings.particles} 
-        speed={appSettings.animationSpeed} 
+        density={appSettings.particles as 'none' | 'few' | 'normal' | 'many'} 
+        speed={appSettings.animationSpeed as 'normal' | 'slow' | 'fast'} 
       />
       
       {/* Header Section - Fixed at top */}
@@ -1030,7 +1107,7 @@ const App = () => {
               <div key={book.id} className="h-full max-w-lg mx-auto">
                 <BookCard 
                   book={book} 
-                  onOpenBook={(book) => setSelectedBook(book)} 
+                  onOpenBook={(book) => setSelectedBook(book as any)} 
                 />
               </div>
             ))}
@@ -1062,7 +1139,7 @@ const App = () => {
       />
       
       {/* CSS for animations */}
-      <style jsx>{`
+      <style>{`
         @keyframes pulse {
           0%, 100% {
             text-shadow: 0 0 15px rgba(234, 179, 8, 0.5);
